@@ -1,0 +1,64 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- 🌱 Seeds to auto-buy
+local targetSeeds = {
+    "Tomato",
+    "Strawberry",
+    "Sugar Apple",
+}
+
+-- 🔗 RemoteEvent path
+local buyRemote = ReplicatedStorage:WaitForChild("GameEvents"):FindFirstChild("BuySeedStock")
+if not buyRemote then
+    warn("❌ Could not find BuySeedStock RemoteEvent.")
+    return
+end
+
+-- ♻️ Auto-buy loop
+task.spawn(function()
+    while true do
+        local gui = player.PlayerGui:FindFirstChild("Seed_Shop")
+        if gui then
+            local frame = gui:FindFirstChild("Frame")
+            local scroll = frame and frame:FindFirstChild("ScrollingFrame")
+            if scroll then
+                for _, seedName in ipairs(targetSeeds) do
+                    local itemFrame = scroll:FindFirstChild(seedName)
+                    if itemFrame then
+                        local stockCount = 0
+                        for _, label in ipairs(itemFrame:GetDescendants()) do
+                            if label:IsA("TextLabel") then
+                                local match = label.Text:match("X(%d+)")
+                                if match then
+                                    stockCount = tonumber(match)
+                                    break
+                                end
+                            end
+                        end
+
+                        if stockCount > 0 then
+                            print("🛒 Buying "..stockCount.."x "..seedName)
+                            for i = 1, stockCount do
+                                buyRemote:FireServer(seedName)
+                                task.wait(0.1)
+                            end
+                            print("✅ Bought all "..seedName)
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(10)
+    end
+end)
+
+-- 💤 Anti-AFK
+local VirtualUser = game:GetService("VirtualUser")
+player.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(), workspace.CurrentCamera.CFrame)
+    print("💤 Anti-AFK triggered")
+end)
